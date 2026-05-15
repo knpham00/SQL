@@ -1,4 +1,8 @@
-#This analysis utilized the following Fortune 500 dataset:
+-- ================================================
+-- DATASET: Fortune 500 Companies
+-- Analyzes employee benefits, revenue, and industry 
+-- performance across Fortune 500 companies
+-- ================================================
 
 CREATE TABLE fortune_companies (
     company_id INTEGER PRIMARY KEY,
@@ -58,29 +62,92 @@ VALUES
     ('Company JJ', 'Manufacturing', 370.0, 3100, 1, 20, 12, 7.6),
     ('Company KK', 'Healthcare', 150.2, 3400, 0, 16, 8, 5.3);
 
-# Which companies offer at least 20 days of paid time off. 
-SELECT company_name, SUM(paid_time_off_days) AS total_paid_time_days_off
+-- ================================================
+-- BASIC QUERIES
+-- ================================================
+
+-- HAVING: Companies offering at least 20 days of paid time off
+-- Uses HAVING to filter after grouping by company
+
+SELECT 
+    company_name, 
+    SUM(paid_time_off_days) AS total_paid_time_days_off
 FROM fortune_companies
 GROUP BY company_name
 HAVING total_paid_time_days_off>20;
 
-# Which companies offer health care benefits and at least 10 weeks of maternity leave?
+-- FILTER: Companies offering healthcare benefits and 10+ weeks maternity leave
+-- Combines two WHERE conditions to find companies with strong benefit packages
+
 SELECT *
 FROM fortune_companies
 WHERE healthcare_benefits=1
 AND maternity_leave_weeks>=10;
 
-#Which company in the technology industry has the least amount of employees and what is the amount of employees?
-SELECT company_name, MIN(employees)
+-- MIN + FILTER: Smallest technology company by employee count
+-- Filters to one industry then finds the minimum value
+
+SELECT 
+    company_name, 
+    MIN(employees)
 FROM fortune_companies
 WHERE industry= 'Technology';
 
-# Assign all the companies in the Finance industry as "Highest revenue", "Average", or "Lowest revenue" based on the data provided. 
+-- CASE: Categorize Finance companies by revenue tier
+-- Segments companies into revenue buckets for business comparison
+
 SELECT company_name,
-CASE WHEN revenue>=300 THEN "highest revenue"
-WHEN revenue>=150 THEN "average"
-ELSE "lowest revenue"
+CASE 
+    WHEN revenue>=300 THEN 'highest revenue'
+    WHEN revenue>=150 THEN 'average'
+    ELSE 'lowest revenue'
 END AS most_profitable
 FROM fortune_companies
-WHERE industry="Finance";
+WHERE industry='Finance';
 
+-- ================================================
+-- ADVANCED QUERIES
+-- ================================================
+
+-- CTE: Summarize average benefits by industry
+-- Shows clean, readable logic using WITH statement
+
+WITH industry_summary AS (
+    SELECT 
+        industry,
+        ROUND(AVG(revenue), 2) AS avg_revenue,
+        ROUND(AVG(paid_time_off_days), 1) AS avg_pto_days,
+        ROUND(AVG(maternity_leave_weeks), 1) AS avg_maternity_weeks,
+        ROUND(AVG(avg_employee_tenure), 1) AS avg_tenure,
+        COUNT(*) AS company_count
+    FROM fortune_companies
+    GROUP BY industry
+)
+SELECT *
+FROM industry_summary
+ORDER BY avg_revenue DESC;
+
+
+-- WINDOW FUNCTION: Rank companies by revenue within each industry
+-- Shows relative performance without losing individual company detail
+
+SELECT 
+    company_name,
+    industry,
+    revenue,
+    RANK() OVER (PARTITION BY industry ORDER BY revenue DESC) AS industry_revenue_rank
+FROM fortune_companies
+ORDER BY industry, industry_revenue_rank;
+
+
+-- WINDOW FUNCTION: Compare each company's revenue to their industry average
+-- Shows how far above or below average each company performs
+
+SELECT 
+    company_name,
+    industry,
+    revenue,
+    ROUND(AVG(revenue) OVER (PARTITION BY industry), 2) AS industry_avg_revenue,
+    ROUND(revenue - AVG(revenue) OVER (PARTITION BY industry), 2) AS diff_from_avg
+FROM fortune_companies
+ORDER BY industry, diff_from_avg DESC;
