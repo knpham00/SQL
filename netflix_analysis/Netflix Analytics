@@ -1,6 +1,9 @@
-# This project reveals insights about TV and Movie content hosted on Netflix. 
-
-# The project was written using the PostgreSQL dialect and utilized data from the following two Netflix datasets:
+-- ================================================
+-- DATASET: Netflix Titles Analysis
+-- Analyzes Netflix content across two related tables:
+-- netflix_titles_info (show details) and netflix_people (directors/cast)
+-- Written in PostgreSQL dialect
+-- ================================================
 
 CREATE TABLE netflix_titles_info
     ("show_id" varchar(5), "type" varchar(7), "title" varchar(58), "country" varchar(74), "date_added" timestamp, "release_year" int, "rating" varchar(5), "duration" varchar(9), "listed_in" varchar(74))
@@ -60,32 +63,122 @@ VALUES
     ('s20', NULL, 'Blanca SuÃ¡rez| IvÃ¡n Marcos| Ã“scar Casas| AdriÃ¡n Lastra| Francesc Garrido| Stefan Weinert| Julia MÃ¶ller| Alicia Chojnowski')
     ;
 
-# The following SQL was written to answer specific questions about the content on Netflix:
+-- ================================================
+-- BASIC QUERIES
+-- ================================================
 
-# How many movie titles are there in the database? (movies only, not tv shows)
-SELECT count(*)
+-- COUNT: Total number of movies in the database (excluding TV shows)
+-- Filters on type column to isolate movies only
+
+SELECT 
+    count(*)
 FROM "netflix_titles_info"
-WHERE type='Movies';
+WHERE type='Movie';
 
-#When was the most recent batch of tv shows and/or movies added to the database?
-SELECT max(date(date_added))
+-- MAX + DATE: Most recent date content was added to Netflix
+-- Extracts date portion from timestamp and finds the maximum
+
+SELECT 
+    MAX(date(date_added))
 FROM "netflix_titles_info";
 
-#List all the movies and tv shows in alphabetical order.
-SELECT title
+-- ORDER BY: All titles listed alphabetically
+-- Simple sort across both movies and TV shows
+
+SELECT 
+    title
 FROM "netflix_titles_info"
 ORDER BY title asc;
 
-#Who was the Director for the movie The Starling?
-SELECT director
+-- JOIN + FILTER: Director of a specific movie
+-- Uses LEFT JOIN across two tables to match show details with people data
+
+SELECT 
+    director
 FROM "netflix_people" people
 LEFT JOIN "netflix_titles_info" titles
 ON people.show_id = titles.show_id
 WHERE titles.title='The Starling';
 
-#What is the oldest movie in the database and what year was it made?
-SELECT title, release_year
+-- ORDER BY + LIMIT: Oldest movie in the database
+-- Filters to movies only, sorts by release year ascending, returns top result
+
+SELECT 
+    title, 
+    release_year
 FROM "netflix_titles_info"
 WHERE type='Movie'
 ORDER BY release_year asc
 LIMIT 1;
+
+-- ================================================
+-- ADVANCED QUERIES
+-- ================================================
+
+-- CTE: Summarize content by type and rating
+-- Shows clean, readable logic using WITH statement
+
+WITH content_summary AS (
+    SELECT 
+        type,
+        rating,
+        COUNT(*) AS title_count,
+        MIN(release_year) AS oldest_release,
+        MAX(release_year) AS newest_release
+    FROM netflix_titles_info
+    GROUP BY type, rating
+)
+SELECT *
+FROM content_summary
+ORDER BY type, title_count DESC;
+
+
+-- WINDOW FUNCTION: Rank titles by release year within each content type
+-- Shows how recently each title was produced relative to its type peers
+
+SELECT 
+    title,
+    type,
+    release_year,
+    country,
+    RANK() OVER (PARTITION BY type ORDER BY release_year DESC) AS recency_rank
+FROM netflix_titles_info
+ORDER BY type, recency_rank;
+
+
+-- WINDOW FUNCTION + JOIN: Count titles per country with running total
+-- Combines JOIN with window function to show country content contribution
+
+WITH country_counts AS (
+    SELECT 
+        country,
+        type,
+        COUNT(*) AS title_count
+    FROM netflix_titles_info
+    WHERE country IS NOT NULL
+    GROUP BY country, type
+)
+SELECT 
+    country,
+    type,
+    title_count,
+    SUM(title_count) OVER (PARTITION BY type ORDER BY title_count DESC) AS running_total
+FROM country_counts
+ORDER BY type, title_count DESC;
+
+
+-- CASE STATEMENT: Categorize content by era of release
+-- Segments titles into decades for trend analysis
+
+SELECT 
+    title,
+    type,
+    release_year,
+    CASE 
+        WHEN release_year >= 2020 THEN '2020s'
+        WHEN release_year >= 2010 THEN '2010s'
+        WHEN release_year >= 2000 THEN '2000s'
+        ELSE 'Pre-2000s'
+    END AS release_era
+FROM netflix_titles_info
+ORDER BY release_year DESC;
