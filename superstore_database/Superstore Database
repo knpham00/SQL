@@ -1,3 +1,10 @@
+-- ================================================
+-- DATASET: Superstore Product Database
+-- Analyzes product pricing, inventory, ratings, and 
+-- category performance across a retail superstore
+-- Written in PostgreSQL dialect
+-- ================================================
+
 CREATE TABLE superstore (
     item_id INTEGER PRIMARY KEY,
     item_name TEXT,
@@ -7,41 +14,119 @@ CREATE TABLE superstore (
     average_rating DECIMAL(3, 2)
 );
 
-INSERT INTO superstore (item_id, item_name, category, price, stock_quantity, average_rating)
-VALUES
-    (1, 'Stainless Steel Cookware Set', 'Kitchen Supplies', 89.99, 50, 4.6),
-    (2, 'Memory Foam Mattress', 'Furnishings', 499.99, 30, 4.8),
-    (3, 'Smart LED TV', 'Electronics', 549.00, 20, 4.5),
-    (4, 'Robot Vacuum Cleaner', 'Appliances', 199.50, 40, 4.3),
-    (5, 'Wireless Bluetooth Speaker', 'Electronics', 39.99, 60, 4.2),
-    (6, 'Non-Stick Baking Set', 'Kitchen Supplies', 29.95, 80, 4.4),
-    (7, 'Cotton Bedding Set', 'Furnishings', 89.00, 25, 4.7),
-    (8, 'Smart Home Security Camera', 'Electronics', 79.95, 15, 4.1),
-    (9, 'Air Purifier', 'Appliances', 129.50, 35, 4.6),
-    (10, 'Premium Coffee Maker', 'Kitchen Supplies', 79.99, 50, 4.9),
-    (11, 'Ergonomic Office Chair', 'Furnishings', 189.00, 20, 4.5),
-    (12, 'Wireless Earbuds', 'Electronics', 49.99, 75, 4.3),
-    (13, 'Slow Cooker', 'Appliances', 49.95, 30, 4.7),
-    (14, 'Cutlery Set', 'Kitchen Supplies', 34.50, 40, 4.4),
-    (15, 'Cozy Throw Blanket', 'Furnishings', 24.99, 100, 4.2);
 
-#For this project, I used SQL to query the superstore database to get information about the items sold at the store and their prices. 
+-- ================================================
+-- BASIC QUERIES
+-- ================================================
 
--- Show orders the items by price.
-SELECT item_name, price
+-- ORDER BY: All items sorted by price low to high
+-- Shows full product catalog in ascending price order
+
+SELECT 
+    item_name, 
+    category, 
+    price
 FROM superstore
-ORDER BY price;
+ORDER BY price ASC;
 
--- Show a statistic about the item prices, like a sum, average, minimum, maximum, or count.
-SELECT AVG(price), item_name
-FROM superstore
-GROUP BY item_name;
 
--- Show a statistic about the price for items in the category of "Kitchen Supplies".
-SELECT MAX(price), 'Kitchen Supplies'
+-- AVG: Average price across all products
+-- Single aggregation to understand overall pricing
+
+SELECT 
+    ROUND(AVG(price), 2) AS avg_price
 FROM superstore;
 
--- Show the lowest to highest average rating for each item. 
-SELECT MIN(average_rating), item_name
+
+-- MAX + FILTER: Most expensive Kitchen Supplies item
+-- Filters to one category then finds the highest price
+
+SELECT 
+    item_name, 
+    MAX(price) AS max_price
 FROM superstore
-GROUP BY item_name DESC;
+WHERE category = 'Kitchen Supplies'
+GROUP BY item_name
+ORDER BY max_price DESC
+LIMIT 1;
+
+
+-- ORDER BY: Items ranked from lowest to highest average rating
+-- Shows which products customers rate least favorably
+
+SELECT 
+    item_name, 
+    average_rating
+FROM superstore
+ORDER BY average_rating ASC;
+
+
+-- ================================================
+-- ADVANCED QUERIES
+-- ================================================
+
+-- CTE: Summarize performance metrics by category
+-- Shows clean, readable logic using WITH statement
+
+WITH category_summary AS (
+    SELECT
+        category,
+        COUNT(*) AS total_items,
+        ROUND(AVG(price), 2) AS avg_price,
+        ROUND(AVG(average_rating), 2) AS avg_rating,
+        SUM(stock_quantity) AS total_stock,
+        ROUND(SUM(price * stock_quantity), 2) AS inventory_value
+    FROM superstore
+    GROUP BY category
+)
+SELECT *
+FROM category_summary
+ORDER BY inventory_value DESC;
+
+
+-- WINDOW FUNCTION: Rank items by price within each category
+-- Shows how each product is priced relative to its category peers
+
+SELECT
+    item_name,
+    category,
+    price,
+    RANK() OVER (PARTITION BY category ORDER BY price DESC) AS price_rank
+FROM superstore
+ORDER BY category, price_rank;
+
+
+-- WINDOW FUNCTION: Compare each item's rating to its category average
+-- Identifies which products over or underperform vs category benchmark
+
+SELECT
+    item_name,
+    category,
+    average_rating,
+    ROUND(AVG(average_rating) OVER (PARTITION BY category), 2) AS category_avg_rating,
+    ROUND(average_rating - AVG(average_rating) OVER (PARTITION BY category), 2) AS diff_from_avg
+FROM superstore
+ORDER BY category, diff_from_avg DESC;
+
+
+-- CASE STATEMENT: Categorize items by price tier and stock status
+-- Segments inventory for purchasing and markdown decisions
+
+SELECT
+    item_name,
+    category,
+    price,
+    stock_quantity,
+    CASE
+        WHEN price >= 200 THEN 'Premium'
+        WHEN price >= 75 THEN 'Mid Range'
+        ELSE 'Budget'
+    END AS price_tier,
+    CASE
+        WHEN stock_quantity >= 75 THEN 'Overstocked'
+        WHEN stock_quantity >= 40 THEN 'Healthy'
+        WHEN stock_quantity >= 20 THEN 'Low'
+        ELSE 'Critical'
+    END AS stock_status
+FROM superstore
+ORDER BY price DESC;
