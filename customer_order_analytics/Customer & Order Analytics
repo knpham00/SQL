@@ -1,50 +1,72 @@
-# In this SQL, I'm querying a database with multiple tables in it to quantify statistics about customer and order data. 
+-- ================================================
+-- BASIC QUERIES
+-- ================================================
 
-#How many orders were placed in January?
+-- COUNT: Total orders placed in January
+-- Filters out dirty data rows using length check and header exclusion
 
-SELECT COUNT(orderid)
+SELECT 
+    COUNT(orderid)
 FROM BIT_DB.JanSales
 WHERE length(orderid) = 6
 AND orderid <> 'Order ID';
 
-# How many of those orders were for an iPhone?
+-- COUNT: January orders for a specific product (iPhone)
+-- Adds product filter on top of data cleaning conditions
 
-SELECT COUNT(orderid)
+SELECT 
+    COUNT(orderid)
 FROM BIT_DB.JanSales
 WHERE Product='iPhone'
 AND length(orderid) = 6
 AND orderid <> 'Order ID';
 
-# Select the customer account numbers for all the orders that were placed in February.
+-- DISTINCT + JOIN: Customer account numbers for February orders
+-- Uses INNER JOIN to match customers to their February purchases
 
-SELECT distinct acctnum
+SELECT 
+    DISTINCT acctnum
 FROM BIT_DB.customers cust
 INNER JOIN BIT_DB.FebSales Feb
 ON cust.order_id = Feb.OrderId
 WHERE length(orderid) = 6
 AND orderid <> 'Order ID';
 
-# Which product was the cheapest one sold in January, and what was the price?
+-- ORDER BY + LIMIT: Cheapest product sold in January
+-- Sorts ascending by price and returns only the top result
 
-SELECT distinct product, price
+SELECT 
+    DISTINCT product, 
+    price
 FROM BIT_DB.JanSales
 ORDER BY price ASC LIMIT 1;
 
-# What is the total revenue for each product sold in January?
-SELECT SUM(quantity)*price as revenue, product
+-- AGGREGATION: Total revenue per product in January
+-- Multiplies quantity by price and groups by product
+
+SELECT 
+    SUM(quantity)*price as revenue, 
+    product
 FROM BIT_DB.JanSales
 GROUP BY product;
 
-#Which products were sold in February at 548 Lincoln St, Seattle, WA 98101, how many of each were sold, and what was the total revenue?
+-- FILTER + AGGREGATION: Sales at a specific location in February
+-- Targets one address to analyze product mix and revenue
 
-SELECT product, SUM(quantity)*price as revenue, SUM(quantity)
+SELECT 
+    product, 
+    SUM(quantity)*price as revenue, 
+    SUM(quantity)
 FROM BIT_DB.FebSales
 WHERE location = '548 Lincoln St, Seattle, WA 98101'
 GROUP BY product;
 
-#How many customers ordered more than 2 products at a time in February, and what was the average amount spent for those customers?
+-- AVG + COUNT + JOIN: High quantity February orders
+-- Finds customers who ordered more than 2 items and their avg spend
 
-SELECT AVG(price*quantity), count(distinct cust.acctnum)
+SELECT 
+    AVG(price*quantity), 
+    COUNT(DISTINCT cust.acctnum)
 FROM BIT_DB.FebSales Feb 
 LEFT JOIN BIT_DB.customers cust
 ON cust.order_id = Feb.orderID
@@ -52,16 +74,22 @@ WHERE Feb.quantity > 2
 AND length(orderid) = 6
 AND orderid <> 'Order ID';
 
-#List all the products sold in Los Angeles in February, and include how many of each were sold.
+-- LIKE + GROUP BY: Product sales in Los Angeles in February
+-- Uses wildcard filter to find all LA locations
 
-SELECT Product, SUM(Quantity)
+SELECT 
+    Product, 
+    SUM(Quantity)
 FROM BIT_DB.FebSales
 WHERE location like '%Los Angeles%'
 GROUP BY Product;
 
-#Which locations in New York received at least 3 orders in January, and how many orders did they each receive?
+-- HAVING: New York locations with 3 or more January orders
+-- Uses HAVING to filter groups after aggregation
 
-SELECT location, COUNT(orderID)
+SELECT 
+    DISTINCT location, 
+    COUNT(orderID)
 FROM BIT_DB.JanSales 
 WHERE location LIKE '%NY%'
 AND length(orderid) = 6
@@ -74,36 +102,103 @@ FROM BIT_DB.FebSales
 WHERE length(orderid) = 6
 AND orderid <> 'Order ID';
 
-#How many of each type of headphone were sold in February?
+-- LIKE + GROUP BY: Headphone sales breakdown in February
+-- Filters all headphone variants using wildcard match
 
-SELECT SUM(Quantity) as quantity, Product
+SELECT 
+    SUM(Quantity) as quantity, 
+    Product
 FROM BIT_DB.FebSales
 WHERE Product LIKE '%Headphones%'
 GROUP BY Product;
 
-#What was the average amount spent per account in February?
+-- AVG SPEND: Average amount spent per account in February
+-- Divides total revenue by number of unique accounts
 
-SELECT SUM(quantity*price)/count(cust.acctnum)
+SELECT 
+    SUM(quantity*price)/count(cust.acctnum)
 FROM BIT_DB.FebSales Feb
 LEFT JOIN BIT_DB.customers cust
 ON cust.order_id = Feb.orderID
 WHERE length(orderid) = 6 
 AND orderid <> 'Order ID';
 
-#What was the average quantity of products purchased per account in February?
+-- AVG QUANTITY: Average products purchased per account in February
+-- Divides total units by number of unique customer accounts
 
-SELECT SUM(Feb.quantity)/count(cust.acctnum)
+SELECT 
+SUM(Feb.quantity)/count(cust.acctnum)
 FROM BIT_DB.FebSales Feb
 LEFT JOIN BIT_DB.customers cust
 ON cust.order_id = Feb.orderID
 WHERE length(orderid) = 6 
 AND orderid <> 'Order ID';
 
-#Which product brought in the most revenue in January and how much revenue did it bring in total?
+-- TOP PRODUCT: Highest revenue product in January
+-- Orders by total revenue descending and returns only the top result
 
-SELECT product, 
-sum(quantity*price)
+SELECT 
+    product, 
+    sum(quantity*price)
 FROM BIT_DB.JanSales 
 GROUP BY product
 ORDER BY sum(quantity*price) desc 
 LIMIT 1;
+
+-- ================================================
+-- ADVANCED QUERIES
+-- ================================================
+
+-- CTE: Rank products by total January revenue
+-- Shows clean, readable logic using WITH statement
+
+WITH jan_revenue AS (
+    SELECT 
+        product,
+        SUM(quantity * price) AS total_revenue,
+        SUM(quantity) AS total_units_sold
+    FROM BIT_DB.JanSales
+    WHERE length(orderid) = 6
+    AND orderid <> 'Order ID'
+    GROUP BY product
+)
+SELECT 
+    product,
+    total_revenue,
+    total_units_sold,
+    ROUND(total_revenue / total_units_sold, 2) AS avg_revenue_per_unit
+FROM jan_revenue
+ORDER BY total_revenue DESC;
+
+
+-- WINDOW FUNCTION: Rank products by revenue within each month
+-- Shows how products perform relative to each other
+
+SELECT 
+    product,
+    SUM(quantity * price) AS total_revenue,
+    RANK() OVER (ORDER BY SUM(quantity * price) DESC) AS revenue_rank
+FROM BIT_DB.JanSales
+WHERE length(orderid) = 6
+AND orderid <> 'Order ID'
+GROUP BY product;
+
+
+-- CASE STATEMENT: Categorize orders by spend level
+-- Segments customers into value tiers
+
+SELECT 
+    cust.acctnum,
+    SUM(Feb.quantity * Feb.price) AS total_spent,
+    CASE 
+        WHEN SUM(Feb.quantity * Feb.price) > 1000 THEN 'High Value'
+        WHEN SUM(Feb.quantity * Feb.price) BETWEEN 500 AND 1000 THEN 'Mid Value'
+        ELSE 'Low Value'
+    END AS customer_segment
+FROM BIT_DB.FebSales Feb
+LEFT JOIN BIT_DB.customers cust
+    ON cust.order_id = Feb.orderID
+WHERE length(orderid) = 6
+AND orderid <> 'Order ID'
+GROUP BY cust.acctnum
+ORDER BY total_spent DESC;
