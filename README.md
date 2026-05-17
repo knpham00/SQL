@@ -18,7 +18,7 @@ real-world datasets.
 | [Superstore Database](./superstore_database/) | Sales performance and inventory analysis | CTEs, Window Functions, CASE | — |
 
 ## Technical Skills
-- **Database:** PostgreSQL
+- **Database:** PostgreSQL (transferable to SQL Server, MySQL, Snowflake)
 - **SQL Concepts:** JOINs, Window Functions, CTEs, Subqueries, 
   Aggregations, CASE Statements, Group By, Filtering
 - **Visualization:** Tableau, Power BI
