@@ -7,9 +7,12 @@ via Supabase. This project simulates the type of analysis performed by
 data analysts at property and casualty insurance companies to support 
 underwriting, fraud detection, and risk segmentation decisions.
 
+## Dashboard
+🔗 [View Interactive Tableau Dashboard](https://public.tableau.com/app/profile/kim.pham3676/viz/AutoInsuranceClaimsAnalysis_17790505745000/AutoInsuranceClaimAnalysis)
+
 ## Dataset
 - Source: Kaggle - Auto Insurance Claims Data
-- 1,000 claims across multiple states and vehicle types
+- 1,000 claims across 7 states
 - Columns: policy details, customer demographics, incident type, 
   claim amounts (total, injury, property, vehicle), fraud indicator, 
   vehicle make/model/year
@@ -25,26 +28,28 @@ underwriting, fraud detection, and risk segmentation decisions.
 
 ## SQL Concepts Used
 CTEs | Window Functions | PARTITION BY | RANK() | AVG() OVER |
-SUM + CASE | GROUP BY | HAVING | Aggregations | ROUND() | 
-Filtering | Subqueries | Type Casting (::numeric)
+SUM + CASE | GROUP BY | Aggregations | ROUND() | 
+Filtering | Type Casting (::numeric)
 
 ## Key Findings
-- Total Loss claims average significantly higher payouts than 
-  Minor Damage claims
-- Vehicle Theft incidents carry a disproportionately high fraud rate
-  compared to collision-based claims
-- Significant geographic variance exists in average claim amounts 
-  across states, suggesting regional risk differences
-- High Risk policyholders (fraudulent Total Loss claims) represent 
-  a small but costly segment of the overall book of business
-- Certain vehicle models within the same make carry 2-3x higher 
-  average claims than their brand peers
+- Single Vehicle Collisions have the highest fraud rate at 29% — 
+  counterintuitively higher than Vehicle Theft at 8.5%
+- Major Damage claims average slightly higher than Total Loss claims 
+  ($64,067 vs $62,081), suggesting severity classification alone 
+  doesn't predict cost
+- New York and South Carolina carry the highest average claim amounts 
+  at $56,388 and $54,589 respectively
+- High Risk policyholders represent the smallest segment but carry 
+  the highest individual claim amounts — concentrated loss exposure 
+  in a small group
+- Trivial Damage claims average just $5,302 — dramatically lower than 
+  all other severity categories
 
 ## Why This Matters
 These findings directly support core insurance business functions:
 - **Underwriting** — identify high risk demographics and vehicles 
   for more accurate premium pricing
-- **Fraud Detection** — flag incident types and profiles with 
-  elevated fraud rates for investigation
-- **Claims Management** — benchmark individual claims against 
-  category averages to identify outliers
+- **Fraud Detection** — flag incident types with elevated fraud rates 
+  for investigation
+- **Claims Management** — benchmark individual claims against category 
+  averages to identify outliers
