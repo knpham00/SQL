@@ -53,3 +53,6 @@ These findings directly support core insurance business functions:
   for investigation
 - **Claims Management** — benchmark individual claims against category 
   averages to identify outliers
+
+## Tools Used
+PostgreSQL | Supabase | Tableau Public | VS Code | GitHub
